@@ -23,8 +23,12 @@ const WebviewScreen = () => {
   const [isShowWebview, setIsShowVebview] = React.useState(false);
   const [isLoadingWebview, setIsLoadingVebview] = React.useState(false);
   const [isCanGoBack, setIsCanGoBack] = React.useState(false);
+  const [backClickCount, setBackClickCount] = React.useState(0);
 
-  const handleOpenWebview = () => setIsShowVebview(true);
+  const handleOpenWebview = () => {
+    setBackClickCount(0);
+    setIsShowVebview(true);
+  };
 
   const handleClearSession = () => {
     CookieManager.clearAll();
@@ -36,11 +40,14 @@ const WebviewScreen = () => {
     if (isCanGoBack) {
       webviewRef?.current?.goBack();
       return true;
+    } else if (backClickCount === 1) {
+      BackHandler.exitApp();
     } else {
       setIsShowVebview(false);
+      setBackClickCount(backClickCount + 1);
       return true;
     }
-  }, [isCanGoBack]);
+  }, [backClickCount, isCanGoBack]);
 
   const handleNavigationStateChange = ({canGoBack}) => {
     setIsCanGoBack(canGoBack);
