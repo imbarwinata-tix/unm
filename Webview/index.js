@@ -1,9 +1,9 @@
 import React from 'react';
 import {
   ActivityIndicator,
+  BackHandler,
   Button,
   Dimensions,
-  Platform,
   ScrollView,
   Text,
   View,
@@ -18,6 +18,55 @@ import {styles} from './index.style';
 const height = Dimensions.get('window').height;
 
 const WebviewScreen = () => {
+  const webviewRef = React.useRef(null);
+  const [isLoggin, setIsLoggin] = React.useState(false);
+  const [isShowWebview, setIsShowVebview] = React.useState(false);
+  const [isLoadingWebview, setIsLoadingVebview] = React.useState(false);
+  const [isCanGoBack, setIsCanGoBack] = React.useState(false);
+
+  const handleOpenWebview = () => setIsShowVebview(true);
+
+  const handleClearSession = () => {
+    CookieManager.clearAll();
+    setIsLoggin(false);
+    ToastAndroid.show('Clear session succes!', ToastAndroid.BOTTOM);
+  };
+
+  const handleBackButton = React.useCallback(() => {
+    if (isCanGoBack) {
+      webviewRef?.current?.goBack();
+      return true;
+    } else {
+      setIsShowVebview(false);
+      return true;
+    }
+  }, [isCanGoBack]);
+
+  const handleNavigationStateChange = ({canGoBack}) => {
+    setIsCanGoBack(canGoBack);
+  };
+
+  const loginStatus = React.useMemo(
+    () => (isLoggin ? 'login' : 'non login'),
+    [isLoggin],
+  );
+
+  React.useEffect(() => {
+    CookieManager.get(WEBVIEW_URL).then(cookies => {
+      if (cookies.session_access_token) {
+        setIsLoggin(true);
+      }
+    });
+  }, []);
+
+  React.useEffect(() => {
+    BackHandler.addEventListener('hardwareBackPress', handleBackButton);
+
+    return () => {
+      BackHandler.removeEventListener('hardwareBackPress', handleBackButton);
+    };
+  }, [handleBackButton]);
+
   const webviewProps = {
     injectedJavaScript: `(function() {
       window.postMessage = function(data) {
@@ -49,31 +98,6 @@ const WebviewScreen = () => {
     source: {uri: WEBVIEW_URL},
   };
 
-  const [isLoggin, setIsLoggin] = React.useState(false);
-  const [isShowWebview, setIsShowVebview] = React.useState(false);
-  const [isLoadingWebview, setIsLoadingVebview] = React.useState(false);
-
-  const handleOpenWebview = () => setIsShowVebview(true);
-
-  const handleClearSession = () => {
-    CookieManager.clearAll();
-    setIsLoggin(false);
-    ToastAndroid.show('Clear session succes!', ToastAndroid.BOTTOM);
-  };
-
-  const loginStatus = React.useMemo(
-    () => (isLoggin ? 'login' : 'non login'),
-    [isLoggin],
-  );
-
-  React.useEffect(() => {
-    CookieManager.get(WEBVIEW_URL).then(cookies => {
-      if (cookies.session_access_token) {
-        setIsLoggin(true);
-      }
-    });
-  }, []);
-
   return (
     <ScrollView>
       <View style={styles.container}>
@@ -95,8 +119,10 @@ const WebviewScreen = () => {
           {isShowWebview && (
             <WebView
               {...webviewProps}
+              ref={webviewRef}
               onLoadStart={() => setIsLoadingVebview(true)}
               onLoadEnd={() => setIsLoadingVebview(false)}
+              onNavigationStateChange={handleNavigationStateChange}
               onError={error => console.log('Error when open a webview', error)}
               ignoreSslError={true}
               style={{height}}
